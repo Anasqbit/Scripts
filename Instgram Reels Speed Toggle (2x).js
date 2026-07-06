@@ -5,8 +5,8 @@
 // @description  تسريع 2x بالضغط المطول على الفيديو + زر قابل للسحب مع حفظ الموضع + مؤشر ديناميكي فوق الفيديو
 // @author       Anasqbit
 // @match        https://www.instagram.com/*
-// @updateURL    https://raw.githubusercontent.com/Anasqbit/Scripts/main/Instgram%20Reels%20Speed%20Toggle%20(2x).js
-// @downloadURL  https://raw.githubusercontent.com/Anasqbit/Scripts/main/Instgram%20Reels%20Speed%20Toggle%20(2x).js
+// @updateURL    https://raw.githubusercontent.com/Anasqbit/Scripts/refs/heads/main/Instgram%20Reels%20Speed%20Toggle%20(2x).js
+// @downloadURL  https://raw.githubusercontent.com/Anasqbit/Scripts/refs/heads/main/Instgram%20Reels%20Speed%20Toggle%20(2x).js
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=instagram.com
 // @grant        none
 // ==/UserScript==
