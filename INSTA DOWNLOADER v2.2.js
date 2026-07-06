@@ -11,8 +11,8 @@
 // @compatible chrome
 // @description Add the download button to download profile picture and media in the posts, stories, and highlights in Instagram
 // @author Anasqbit
-// @match https://www.instagram.com/*
-// @icon https://www.google.com/s2/favicons?sz=64&domain=instagram.com
+// @match         https://www.instagram.com/*
+// @icon          https://www.google.com/s2/favicons?sz=64&domain=instagram.com
 // @updateURL     https://github.com/Anasqbit/Scripts/blob/main/INSTA%20DOWNLOADER%20v2.2.js
 // @downloadURL   https://github.com/Anasqbit/Scripts/blob/main/INSTA%20DOWNLOADER%20v2.2.js
 // @grant none
