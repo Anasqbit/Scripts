@@ -5,6 +5,8 @@
 // @description  تسريع 2x بالضغط المطول على الفيديو + زر قابل للسحب مع حفظ الموضع + مؤشر ديناميكي فوق الفيديو
 // @author       Anasqbit
 // @match        https://www.instagram.com/*
+// @updateURL    https://raw.githubusercontent.com/Anasqbit/Scripts/main/Instgram%20Reels%20Speed%20Toggle%20(2x).js
+// @downloadURL  https://raw.githubusercontent.com/Anasqbit/Scripts/main/Instgram%20Reels%20Speed%20Toggle%20(2x).js
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=instagram.com
 // @grant        none
 // ==/UserScript==
@@ -40,9 +42,9 @@
     const indicator = document.createElement('div');
     Object.assign(indicator.style, {
         position: 'fixed',         // نبدأ بـ fixed ونحدّث موضعه ديناميكياً
-        background: 'rgba(0, 0, 0, 0.5)',
-        backdropFilter: 'blur(10px)',
-        webkitBackdropFilter: 'blur(10px)',
+        background: 'rgba(0, 0, 0, 0.25)',
+        backdropFilter: 'blur(2px)',
+        webkitBackdropFilter: 'blur(2px)',
         color: '#ffffff',
         fontSize: '16px',
         fontWeight: '500',
