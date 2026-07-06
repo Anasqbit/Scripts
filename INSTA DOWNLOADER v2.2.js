@@ -7,7 +7,7 @@
 // @name:es Descargador de Instagram
 // @name:fr Téléchargeur Instagram
 // @name:ru Загрузчик Instagram
-// @version v2.2
+// @version v1.2
 // @compatible chrome
 // @description Add the download button to download profile picture and media in the posts, stories, and highlights in Instagram
 // @author Anasqbit
