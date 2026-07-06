@@ -1,0 +1,282 @@
+// ==UserScript==
+// @name         Reels Speed Toggle (2x)
+// @namespace    http://tampermonkey.net/
+// @version      6.1
+// @description  تسريع 2x بالضغط المطول على الفيديو + زر قابل للسحب مع حفظ الموضع + مؤشر ديناميكي فوق الفيديو
+// @author       Anasqbit
+// @match        https://www.instagram.com/*
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=instagram.com
+// @grant        none
+// ==/UserScript==
+
+(function () {
+    'use strict';
+
+    let fast = false;
+    let holdActive = false;
+    let holdTimer = null;
+    let lastVideo = null;
+    const STORAGE_KEY = 'ig_speed_btn_pos';
+
+    function isTargetPage() {
+        return /^\/(reels|p)\//.test(location.pathname);
+    }
+
+    function applySpeedToAll() {
+        document.querySelectorAll('video').forEach(v => {
+            v.playbackRate = fast ? 2 : 1;
+        });
+    }
+
+    // ─── الحصول على الفيديو النشط حالياً ─────────────────────
+    function getActiveVideo() {
+        // نحاول نجيب الفيديو اللي يشتغل فعلاً
+        const videos = Array.from(document.querySelectorAll('video'));
+        const playing = videos.find(v => !v.paused && !v.ended);
+        return playing || videos[0] || null;
+    }
+
+    // ─── مؤشر 2x ديناميكي فوق الفيديو ───────────────────────
+    const indicator = document.createElement('div');
+    Object.assign(indicator.style, {
+        position: 'fixed',         // نبدأ بـ fixed ونحدّث موضعه ديناميكياً
+        background: 'rgba(0, 0, 0, 0.5)',
+        backdropFilter: 'blur(10px)',
+        webkitBackdropFilter: 'blur(10px)',
+        color: '#ffffff',
+        fontSize: '16px',
+        fontWeight: '500',
+        padding: '8px 18px',
+        borderRadius: '40px',
+        zIndex: 999999,
+        display: 'none',
+        pointerEvents: 'none',
+        fontFamily: 'Roboto, Arial, sans-serif',
+        boxShadow: '0 4px 10px rgba(0,0,0,0.2)',
+        letterSpacing: '0.5px',
+        transition: 'opacity 0.15s ease'
+    });
+    indicator.textContent = '2x';
+    document.body.appendChild(indicator);
+
+    // ─── دالة تحديث موضع المؤشر بناءً على الفيديو الحالي ─────
+    let rafId = null;
+
+    function updateIndicatorPosition() {
+        const video = getActiveVideo();
+        if (!video || indicator.style.display === 'none') {
+            rafId = null;
+            return;
+        }
+
+        const rect = video.getBoundingClientRect();
+
+        // نحسب المركز الأفقي للفيديو، وضع علوي (19% من ارتفاعه)
+        const centerX = rect.left + rect.width / 2;
+        const topY    = rect.top  + rect.height * 0.01; // 1% من أعلى الفيديو
+
+        indicator.style.left      = centerX + 'px';
+        indicator.style.top       = topY    + 'px';
+        indicator.style.transform = 'translateX(-50%)'; // نمركزه أفقياً
+
+        // نكمل الـ loop طالما المؤشر ظاهر
+        rafId = requestAnimationFrame(updateIndicatorPosition);
+    }
+
+    function showIndicator() {
+        indicator.style.display = 'block';
+        // نبدأ loop تحديث الموضع
+        if (!rafId) {
+            rafId = requestAnimationFrame(updateIndicatorPosition);
+        }
+    }
+
+    function hideIndicator() {
+        indicator.style.display = 'none';
+        // نوقف الـ loop
+        if (rafId) {
+            cancelAnimationFrame(rafId);
+            rafId = null;
+        }
+    }
+
+    // ─── الزر ───────────────────────────────────────────────
+    const savedPos = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    const btn = document.createElement('button');
+    btn.textContent = '1x';
+    Object.assign(btn.style, {
+        position: 'fixed',
+        bottom: (savedPos?.bottom ?? 20) + 'px',
+        right:  (savedPos?.right  ?? 20) + 'px',
+        left: 'auto', top: 'auto',
+        zIndex: 999998,
+        padding: '8px 18px',
+        background: 'linear-gradient(135deg, #6a11cb, #2575fc)',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '20px',
+        fontSize: '15px',
+        fontWeight: 'bold',
+        cursor: 'grab',
+        opacity: '0.93',
+        boxShadow: '0 3px 12px rgba(0,0,0,0.45)',
+        transition: 'background 0.2s',
+        userSelect: 'none',
+        touchAction: 'none'
+    });
+
+    // ─── السحب ───────────────────────────────────────────────
+    let dragging = false, dragMoved = false;
+    let startX, startY, startRight, startBottom;
+
+    btn.addEventListener('mousedown', e => {
+        dragging = true; dragMoved = false;
+        startX = e.clientX; startY = e.clientY;
+        startRight  = parseFloat(btn.style.right);
+        startBottom = parseFloat(btn.style.bottom);
+        btn.style.cursor = 'grabbing';
+        btn.style.transition = 'none';
+        e.preventDefault();
+    });
+    document.addEventListener('mousemove', e => {
+        if (!dragging) return;
+        const dx = e.clientX - startX, dy = e.clientY - startY;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragMoved = true;
+        btn.style.right  = Math.max(0, startRight  - dx) + 'px';
+        btn.style.bottom = Math.max(0, startBottom - dy) + 'px';
+    });
+    document.addEventListener('mouseup', () => {
+        if (!dragging) return;
+        dragging = false;
+        btn.style.cursor = 'grab';
+        btn.style.transition = 'background 0.2s';
+        if (dragMoved) localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            right: parseFloat(btn.style.right), bottom: parseFloat(btn.style.bottom)
+        }));
+    });
+
+    btn.addEventListener('click', () => {
+        if (dragMoved) return;
+        fast = !fast;
+        btn.textContent = fast ? '2x' : '1x';
+        btn.style.background = fast
+            ? 'linear-gradient(135deg, #e74c3c, #c0392b)'
+            : 'linear-gradient(135deg, #6a11cb, #2575fc)';
+        applySpeedToAll();
+    });
+
+    // ─── مساعد لتحديث شكل الزر ──────────────────────────────
+    function updateBtnAppearance() {
+        const is2x = fast || holdActive;
+        btn.textContent = is2x ? '2x' : '1x';
+        btn.style.background = is2x
+            ? 'linear-gradient(135deg, #e74c3c, #c0392b)'
+            : 'linear-gradient(135deg, #6a11cb, #2575fc)';
+    }
+
+    // ─── Hold logic ──────────────────────────────────────────
+    // نحتاج نفرق بين الضغطة العادية (click → pause) والضغط المطول (hold → 2x)
+    // الحل: لو holdActive اشتغل، نمنع الـ click event اللي بيجي بعده
+    let suppressNextClick = false;
+
+    function onHoldStart(e) {
+        if (btn.contains(e.target)) return;
+
+        clearTimeout(holdTimer);
+        holdTimer = setTimeout(() => {
+            holdActive = true;
+            suppressNextClick = true; // ← نحجب الـ click اللي رح يجي بعد رفع الإصبع
+            showIndicator();
+            updateBtnAppearance();    // ← الزر يتحدث لـ 2x
+            document.querySelectorAll('video').forEach(v => v.playbackRate = 2);
+        }, 300);
+    }
+
+    function onHoldEnd() {
+        clearTimeout(holdTimer);
+        if (!holdActive) return;
+        holdActive = false;
+        hideIndicator();
+        updateBtnAppearance();        // ← الزر يرجع لحالته (1x أو 2x حسب fast)
+        document.querySelectorAll('video').forEach(v => {
+            v.playbackRate = fast ? 2 : 1;
+        });
+    }
+
+    // نحجب الـ click اللي ينتج عن رفع الإصبع بعد Hold — حتى ما يعمل pause
+    document.addEventListener('click', e => {
+        if (suppressNextClick) {
+            suppressNextClick = false;
+            e.stopPropagation();
+            e.preventDefault();
+        }
+    }, true); // capture phase — قبل ما إنستغرام يشوفه
+
+    function attachDocumentHold() {
+        document.addEventListener('mousedown',   onHoldStart);
+        document.addEventListener('mouseup',     onHoldEnd);
+        document.addEventListener('mouseleave',  onHoldEnd);
+        document.addEventListener('touchstart',  onHoldStart, { passive: true });
+        document.addEventListener('touchend',    onHoldEnd);
+        document.addEventListener('touchcancel', onHoldEnd);
+    }
+
+    // ─── راقب كل فيديو جديد ─────────────────────────────────
+    const domObserver = new MutationObserver(() => {
+        if (!isTargetPage()) return;
+        document.querySelectorAll('video').forEach(v => {
+            if (v === lastVideo) return;
+            lastVideo = v;
+            if (fast || holdActive) v.playbackRate = 2;
+
+            v.addEventListener('play', () => {
+                if (fast || holdActive) v.playbackRate = 2;
+            });
+            v.addEventListener('ratechange', () => {
+                if ((fast || holdActive) && v.playbackRate !== 2) v.playbackRate = 2;
+            });
+        });
+    });
+
+    domObserver.observe(document.documentElement, { childList: true, subtree: true });
+
+    // ─── راقب تغيير URL ──────────────────────────────────────
+    function onNavigate() {
+        if (isTargetPage()) {
+            if (!document.body.contains(btn)) {
+                document.body.appendChild(btn);
+                document.body.appendChild(indicator);
+            }
+            setTimeout(applySpeedToAll, 600);
+        } else {
+            btn.remove();
+            fast = false;
+            btn.textContent = '1x';
+            btn.style.background = 'linear-gradient(135deg, #6a11cb, #2575fc)';
+            hideIndicator();
+        }
+    }
+
+    const _push = history.pushState.bind(history);
+    const _replace = history.replaceState.bind(history);
+    history.pushState    = (...a) => { _push(...a);    onNavigate(); };
+    history.replaceState = (...a) => { _replace(...a); onNavigate(); };
+    window.addEventListener('popstate', onNavigate);
+
+    window.addEventListener('load', () => {
+        if (isTargetPage()) {
+            document.body.appendChild(btn);
+            document.body.appendChild(indicator);
+        }
+        attachDocumentHold();
+    });
+
+    if (document.readyState === 'complete') {
+        if (isTargetPage()) {
+            document.body.appendChild(btn);
+            document.body.appendChild(indicator);
+        }
+        attachDocumentHold();
+    }
+
+})();
