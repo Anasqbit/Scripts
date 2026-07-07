@@ -13,8 +13,8 @@
 // @author Anasqbit
 // @matc   https://www.instagram.com/*
 // @icon   https://www.google.com/s2/favicons?sz=64&domain=instagram.com
-// @updateURL     https://raw.githubusercontent.com/Anasqbit/Scripts/refs/heads/main/INSTA%20DOWNLOADER%20v2.2.js
-// @downloadURL   https://raw.githubusercontent.com/Anasqbit/Scripts/refs/heads/main/INSTA%20DOWNLOADER%20v2.2.js
+// @updateURL     https://raw.githubusercontent.com/Anasqbit/Scripts/refs/heads/main/INSTA%20DOWNLOADER%20v2.2.user.js
+// @downloadURL   https://raw.githubusercontent.com/Anasqbit/Scripts/refs/heads/main/INSTA%20DOWNLOADER%20v2.2.user.js
 // @grant none
 // @license MIT
 // @run-at document-start
