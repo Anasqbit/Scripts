@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Reels Speed Toggle (2x)
 // @namespace    http://tampermonkey.net/
-// @version      7.1
+// @version      7.1.1
 // @description  تسريع 2x بالضغط المطول على الفيديو + زر قابل للسحب مع حفظ الموضع + مؤشر ديناميكي فوق الفيديو
 // @author       Anasqbit
 // @match        https://www.instagram.com/*
@@ -43,7 +43,7 @@
     Object.assign(indicator.style, {
         position: 'fixed',         // نبدأ بـ fixed ونحدّث موضعه ديناميكياً
         background: 'rgba(0, 0, 0, 0.25)',
-        backdropFilter: 'blur(22px)',
+        backdropFilter: 'blur(2px)',
         webkitBackdropFilter: 'blur(2px)',
         color: '#ffffff',
         fontSize: '16px',
