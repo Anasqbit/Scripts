@@ -43,7 +43,7 @@
     Object.assign(indicator.style, {
         position: 'fixed',         // نبدأ بـ fixed ونحدّث موضعه ديناميكياً
         background: 'rgba(0, 0, 0, 0.25)',
-        backdropFilter: 'blur(2px)',
+        backdropFilter: 'blur(22px)',
         webkitBackdropFilter: 'blur(2px)',
         color: '#ffffff',
         fontSize: '16px',
