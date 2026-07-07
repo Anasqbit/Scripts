@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Reels Speed Toggle (2x)
 // @namespace    http://tampermonkey.net/
-// @version      8.1
+// @version      7.1
 // @description  تسريع 2x بالضغط المطول على الفيديو + زر قابل للسحب مع حفظ الموضع + مؤشر ديناميكي فوق الفيديو
 // @author       Anasqbit
 // @match        https://www.instagram.com/*
