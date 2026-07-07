@@ -1,1 +1,0 @@
-C:\Windows\System32\cmd.exe /c "call "C:\Users\tom and jery\AppData\Local\Discord\VPN\turkey_dnsredir_alternative2_superonline.cmd" & timeout /t 2 /nobreak >nul & "C:\Users\tom and jery\AppData\Local\Discord\Update.exe" --processStart Discord.exe"
