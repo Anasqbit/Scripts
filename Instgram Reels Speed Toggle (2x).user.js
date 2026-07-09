@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Reels Speed Toggle (2x)
 // @namespace    http://tampermonkey.net/
-// @version      7.1
+// @version      7.2
 // @description  تسريع 2x بالضغط المطول على الفيديو + زر قابل للسحب مع حفظ الموضع + مؤشر ديناميكي فوق الفيديو
 // @author       Anasqbit
 // @match        https://www.instagram.com/*
@@ -181,8 +181,25 @@
     // الحل: لو holdActive اشتغل، نمنع الـ click event اللي بيجي بعده
     let suppressNextClick = false;
 
+    function isOverVideo(e) {
+        const video = getActiveVideo();
+        if (!video) return false;
+        const rect = video.getBoundingClientRect();
+        // نجيب الإحداثيات سواء mouse أو touch
+        const clientX = e.clientX ?? e.touches?.[0]?.clientX;
+        const clientY = e.clientY ?? e.touches?.[0]?.clientY;
+        if (clientX == null || clientY == null) return false;
+        return (
+            clientX >= rect.left  &&
+            clientX <= rect.right &&
+            clientY >= rect.top   &&
+            clientY <= rect.bottom
+        );
+    }
+
     function onHoldStart(e) {
         if (btn.contains(e.target)) return;
+        if (!isOverVideo(e)) return;   // ← تجاهل لو الضغط خارج الفيديو
 
         clearTimeout(holdTimer);
         holdTimer = setTimeout(() => {
