@@ -1,10 +1,11 @@
 // ==UserScript==
-// @name         Youtube Video Downloader
+// @name         Youtube Video Downloader 7.3.0
 // @namespace    http://tampermonkey.net/
 // @author       Anasqbit
-// @version      7.1.0
-// @description  Download Youtube videos using any4k api - real formats from page scraping.
+// @version      7.3.0
+// @description  Download Youtube videos using any4k api -FIXED VIDEO MP4 AND TITEL.
 // @match        https://www.youtube.com/*
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=youtube.com
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -98,6 +99,7 @@
             .replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":')
             .replace(/:\s*b\b/g,  ':"mp4"')
             .replace(/:\s*h\b/g,  ':"m4a"')
+            .replace(/:\s*d\b/g,  ':"mp4"')
             .replace(/:\s*i\b/g,  ':"mp4a"')
             .replace(/:\s*f\b/g,  ':"av01"')
             .replace(/:\s*g\b/g,  ':"avc1"')
@@ -116,7 +118,7 @@
                 if (res.status !== 200) { cb(`HTTP ${res.status}`); return; }
                 const clean = res.responseText.replace(/\\u002F/g, '/');
                 let title = '';
-                const tm = clean.match(/"title":"((?:[^"\\]|\\.)*)"/);
+                const tm = clean.match(/title\s*:\s*"((?:[^"\\]|\\.)*)"/);
                 if (tm) {
                     title = tm[1]
                         .replace(/\\u([\dA-Fa-f]{4})/g,
@@ -170,7 +172,6 @@
     function injectStyle() {
         if (document.getElementById(IDS.STYLE)) return;
         const dark  = isDark();
-        const bg    = dark ? '#272727' : '#f2f2f2';
         const hover = dark ? '#3f3f3f' : '#e5e5e5';
         const color = dark ? '#fff'    : '#030303';
         const popBg = dark ? '#1e1e1e' : '#fff';
@@ -180,22 +181,6 @@
         s.id = IDS.STYLE;
         s.textContent = `
 #${IDS.WRAPPER}{display:inline-flex;align-items:center;gap:6px;margin:0 8px;}
-.yt-dl-btn{
-    display:inline-flex;align-items:center;justify-content:center;gap:5px;
-    height:36px;padding:0 14px;border:none;border-radius:18px;
-    background:${bg};color:${color};
-    font:500 14px/1 "Roboto","Arial",sans-serif;
-    cursor:pointer;white-space:nowrap;
-    transition:background .15s;box-sizing:border-box;
-}
-.yt-dl-btn:hover:not(:disabled){background:${hover};}
-.yt-dl-btn:disabled{opacity:.5;cursor:not-allowed;}
-#${IDS.FMT_BTN}{min-width:155px;max-width:220px;justify-content:space-between;padding:0 10px 0 14px;}
-#${IDS.FMT_BTN} .arr{
-    width:0;height:0;flex-shrink:0;
-    border-left:5px solid transparent;border-right:5px solid transparent;
-    border-top:6px solid currentColor;margin-left:4px;
-}
 #${IDS.BACKDROP}{
     position:fixed;inset:0;z-index:2200;
     background:rgba(0,0,0,0.55);
@@ -249,23 +234,99 @@
     animation:yt-dl-rot .7s linear infinite;
 }
 @keyframes yt-dl-rot{to{transform:rotate(360deg);}}
-.yt-dl-loading{background:#d97706 !important;color:#fff !important;}
-.yt-dl-done   {background:#16a34a !important;color:#fff !important;}
+.yt-dl-loading{background:#d97706 !important;color:#fff !important;border-color:transparent !important;}
+.yt-dl-done   {background:#16a34a !important;color:#fff !important;border-color:transparent !important;}
+.yt-dl-loading .ytSpecButtonShapeNextButtonTextContent, .yt-dl-done .ytSpecButtonShapeNextButtonTextContent { color: #fff !important; }
         `;
         document.head.appendChild(s);
     }
 
-    function makeIcon() {
+    function makeDownloadSvg() {
         const NS = 'http://www.w3.org/2000/svg';
         const svg = document.createElementNS(NS, 'svg');
+        svg.setAttribute('height', '24');
         svg.setAttribute('viewBox', '0 0 24 24');
-        svg.setAttribute('width', '16'); svg.setAttribute('height', '16');
-        svg.style.cssText = 'flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round';
+        svg.setAttribute('width', '24');
+        svg.style.cssText = 'pointer-events: none; display: inherit; width: 100%; height: 100%; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;';
         ['M12 4v12', 'M8 12l4 4 4-4', 'M4 18h16'].forEach(d => {
             const p = document.createElementNS(NS, 'path');
             p.setAttribute('d', d); svg.appendChild(p);
         });
         return svg;
+    }
+
+    function makeArrowSvg() {
+        const NS = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(NS, 'svg');
+        svg.setAttribute('height', '24');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('width', '24');
+        svg.style.cssText = 'pointer-events: none; display: inherit; width: 100%; height: 100%; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;';
+        const p = document.createElementNS(NS, 'path');
+        p.setAttribute('d', 'M6 9l6 6 6-6');
+        svg.appendChild(p);
+        return svg;
+    }
+
+    function createPerfectYtButton(text, iconSvgElement, id) {
+        const wrapper = document.createElement('yt-button-view-model');
+        wrapper.className = "ytd-menu-renderer";
+
+        const buttonViewModel = document.createElement('button-view-model');
+        buttonViewModel.className = 'ytSpecButtonViewModelHost style-scope ytd-menu-renderer';
+
+        const btn = document.createElement('button');
+        btn.id = id;
+        btn.className = "ytSpecButtonShapeNextHost ytSpecButtonShapeNextTonal ytSpecButtonShapeNextMono ytSpecButtonShapeNextSizeM ytSpecButtonShapeNextIconLeading ytSpecButtonShapeNextEnableBackdropFilterExperiment";
+        btn.setAttribute('aria-label', text);
+        btn.setAttribute('aria-disabled', 'false');
+
+        const iconContainer = document.createElement('div');
+        iconContainer.className = "ytSpecButtonShapeNextIcon ytSpecButtonShapeNextElevatedContent";
+        iconContainer.setAttribute('aria-hidden', 'true');
+
+        const span1 = document.createElement('span');
+        span1.className = "ytIconWrapperHost";
+        span1.style.cssText = "width: 24px; height: 24px;";
+
+        const span2 = document.createElement('span');
+        span2.className = "yt-icon-shape ytSpecIconShapeHost";
+
+        const iconDiv = document.createElement('div');
+        iconDiv.style.cssText = "width: 100%; height: 100%; display: block; fill: currentcolor;";
+
+        iconDiv.appendChild(iconSvgElement);
+        span2.appendChild(iconDiv);
+        span1.appendChild(span2);
+        iconContainer.appendChild(span1);
+        btn.appendChild(iconContainer);
+
+        const textDiv = document.createElement('div');
+        textDiv.className = "ytSpecButtonShapeNextButtonTextContent ytSpecButtonShapeNextElevatedContent";
+        textDiv.textContent = text;
+        btn.appendChild(textDiv);
+
+        const feedbackShape = document.createElement('yt-touch-feedback-shape');
+        feedbackShape.setAttribute('aria-hidden', 'true');
+        feedbackShape.className = "ytSpecTouchFeedbackShapeHost ytSpecTouchFeedbackShapeTouchResponse";
+        const strokeDiv = document.createElement('div'); strokeDiv.className = "ytSpecTouchFeedbackShapeStroke";
+        const fillDiv = document.createElement('div'); fillDiv.className = "ytSpecTouchFeedbackShapeFill";
+        feedbackShape.appendChild(strokeDiv);
+        feedbackShape.appendChild(fillDiv);
+        btn.appendChild(feedbackShape);
+
+        const lightShape = document.createElement('yt-light-shape');
+        lightShape.setAttribute('aria-hidden', 'true');
+        lightShape.className = "contribYtLightShapeHost contribYtLightShapeStaticRimLight contribYtLightShapeStaticRimLightTonal";
+        lightShape.style.cssText = "--yt-light-wash-opacity: 0; --yt-light-wash-x: 0px; --yt-light-wash-y: 0px; --yt-light-wash-size: 0px;";
+        const washLight = document.createElement('div'); washLight.className = "contribYtLightShapeStaticWashLight contribYtLightShapeStaticWashLightTonal";
+        lightShape.appendChild(washLight);
+        btn.appendChild(lightShape);
+
+        buttonViewModel.appendChild(btn);
+        wrapper.appendChild(buttonViewModel);
+
+        return { btn, wrapper };
     }
 
     function findContainer() {
@@ -278,33 +339,18 @@
         if (document.getElementById(IDS.WRAPPER)) return;
         injectStyle();
 
-        const fmtLabel = document.createElement('span');
-        fmtLabel.textContent = 'Select Format';
-        const arr = document.createElement('span');
-        arr.className = 'arr';
+        const fmtObj = createPerfectYtButton('Select Format', makeArrowSvg(), IDS.FMT_BTN);
+        const dlObj = createPerfectYtButton('Download', makeDownloadSvg(), IDS.DL_BTN);
 
-        const fmtBtn = document.createElement('button');
-        fmtBtn.id = IDS.FMT_BTN;
-        fmtBtn.className = 'yt-dl-btn';
-        fmtBtn.appendChild(fmtLabel);
-        fmtBtn.appendChild(arr);
-        fmtBtn.addEventListener('click', onFmtClick);
-
-        const dlLabel = document.createElement('span');
-        dlLabel.textContent = 'Download';
-
-        const dlBtn = document.createElement('button');
-        dlBtn.id = IDS.DL_BTN;
-        dlBtn.className = 'yt-dl-btn';
-        dlBtn.appendChild(makeIcon());
-        dlBtn.appendChild(dlLabel);
-        dlBtn.addEventListener('click', onDlClick);
+        fmtObj.btn.addEventListener('click', onFmtClick);
+        dlObj.btn.addEventListener('click', onDlClick);
 
         const wrapper = document.createElement('div');
         wrapper.id = IDS.WRAPPER;
-        wrapper.appendChild(fmtBtn);
-        wrapper.appendChild(dlBtn);
+        wrapper.appendChild(fmtObj.wrapper);
+        wrapper.appendChild(dlObj.wrapper);
 
+        // هنا تم إعادة طريقة الحقن الأصلية
         const like = container.querySelector('#segmented-like-button');
         if (like) like.after(wrapper);
         else container.appendChild(wrapper);
@@ -323,13 +369,24 @@
         const off = !(isWatch() || isShorts()) || isLive();
         [IDS.FMT_BTN, IDS.DL_BTN].forEach(id => {
             const b = document.getElementById(id);
-            if (b && !b.dataset.loading) b.disabled = off;
+            if (b && !b.dataset.loading) {
+                b.disabled = off;
+                if(off) {
+                    b.setAttribute('aria-disabled', 'true');
+                    b.style.opacity = '0.5';
+                    b.style.pointerEvents = 'none';
+                } else {
+                    b.setAttribute('aria-disabled', 'false');
+                    b.style.opacity = '1';
+                    b.style.pointerEvents = 'auto';
+                }
+            }
         });
         const vid = getVideoId();
         if (vid && vid !== cache.videoId) {
             cache = { videoId: null, groups: null, title: null };
             selectedFmt = null;
-            const lbl = document.querySelector(`#${IDS.FMT_BTN} span`);
+            const lbl = document.querySelector(`#${IDS.FMT_BTN} .ytSpecButtonShapeNextButtonTextContent`);
             if (lbl) lbl.textContent = 'Select Format';
         }
     }
@@ -410,7 +467,7 @@
                 btn.textContent = fmt.label;
                 btn.addEventListener('click', () => {
                     selectedFmt = fmt;
-                    const lbl = document.querySelector(`#${IDS.FMT_BTN} span`);
+                    const lbl = document.querySelector(`#${IDS.FMT_BTN} .ytSpecButtonShapeNextButtonTextContent`);
                     if (lbl) lbl.textContent = fmt.label;
                     closePopup();
                 });
@@ -430,9 +487,6 @@
         if (e.key === 'Escape') closePopup();
     }
 
-    /* ═══════════════════════════════════════
-       Download
-    ═══════════════════════════════════════ */
     function onDlClick() {
         const dlBtn  = document.getElementById(IDS.DL_BTN);
         const fmtBtn = document.getElementById(IDS.FMT_BTN);
@@ -446,8 +500,8 @@
         const url = getVideoUrl();
         if (!url) return;
 
-        const dlLabel = dlBtn.querySelector('span');
-        const icon    = dlBtn.querySelector('svg');
+        const dlLabel = dlBtn.querySelector('.ytSpecButtonShapeNextButtonTextContent');
+        const icon    = dlBtn.querySelector('.ytSpecButtonShapeNextIcon');
 
         const setLoading = txt => {
             dlBtn.dataset.loading = '1';
@@ -481,7 +535,6 @@
 
         setLoading('⏳ Starting…');
 
-        /* ── Step 1: طلب التحميل ── */
         GM_xmlhttpRequest({
             method  : 'POST',
             url     : API_DOWNLOAD,
@@ -503,7 +556,6 @@
 
                 setLoading('⏳ 0%');
 
-                /* ── Step 2: تابع التقدم ── */
                 listenSSE(dlId, 0, dlLabel, setDone, resetBtn);
             },
             onerror  () { alert('❌ Network error'); resetBtn(); },
@@ -511,9 +563,6 @@
         });
     }
 
-    /* ═══════════════════════════════════════
-       SSE — EventSource فقط + iframe للتحميل
-    ═══════════════════════════════════════ */
     function listenSSE(dlId, attempt, dlLabel, setDone, resetBtn) {
         if (attempt > 8) {
             alert('❌ Failed after multiple retries.');
@@ -541,7 +590,6 @@
             return;
         }
 
-        /* ── تقدم السيرفر ── */
         es.addEventListener('progress', e => {
             const n = parseFloat(e.data);
             if (!isNaN(n)) {
@@ -549,7 +597,6 @@
             }
         });
 
-        /* ── اكتمل السيرفر ── */
         es.addEventListener('done', () => {
             finish(() => {
                 triggerIframeDownload(dlId);
@@ -557,7 +604,6 @@
             });
         });
 
-        /* ── خطأ من السيرفر ── */
         es.addEventListener('error', e => {
             const data = e.data || '';
 
@@ -577,10 +623,8 @@
                     resetBtn();
                 });
             }
-            // بدون data = reconnect تلقائي من EventSource — لا نتدخل
         });
 
-        /* ── حماية من التعليق اللانهائي ── */
         const guardTimer = setTimeout(() => {
             finish(() => {
                 console.warn('[YTDl] SSE guard timeout — retry');
@@ -594,9 +638,6 @@
         es.addEventListener('error', () => clearTimeout(guardTimer));
     }
 
-    /* ═══════════════════════════════════════
-       Iframe download
-    ═══════════════════════════════════════ */
     function triggerIframeDownload(dlId) {
         const fileUrl = `${API_FILE}?i=${dlId}`;
         const iframe  = document.createElement('iframe');
@@ -606,9 +647,6 @@
         setTimeout(() => iframe.remove(), 60_000);
     }
 
-    /* ═══════════════════════════════════════
-       Bootstrap
-    ═══════════════════════════════════════ */
     function checkAndInject() {
         const container = findContainer();
         const existing  = document.getElementById(IDS.WRAPPER);
