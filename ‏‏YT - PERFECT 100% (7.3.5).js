@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         Youtube Video Downloader 7.3.0
+// @name         Youtube Video Downloader 7.3.5
 // @namespace    http://tampermonkey.net/
 // @author       Anasqbit
-// @version      7.3.0
-// @description  Download Youtube videos using any4k api - real formats from page scraping.
+// @version      7.3.5
+// @description  Download Youtube videos using any4k api -FIXED VIDEO MP4 AND TITEL.
 // @match        https://www.youtube.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=youtube.com
 // @grant        GM_xmlhttpRequest
@@ -94,19 +94,21 @@
         return asr >= 1000 ? `${(asr / 1000).toFixed(0)}kHz` : `${asr}Hz`;
     }
 
-    function fixJson(str) {
-        return str
-            .replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":')
-            .replace(/:\s*b\b/g,  ':"mp4"')
-            .replace(/:\s*h\b/g,  ':"m4a"')
-			.replace(/:\s*d\b/g,  ':"mp4"')   
-            .replace(/:\s*i\b/g,  ':"mp4a"')
-            .replace(/:\s*f\b/g,  ':"av01"')
-            .replace(/:\s*g\b/g,  ':"avc1"')
-            .replace(/void\s+0/g, 'null')
-            .replace(/:\s*c\b/g,  ':false')
-            .replace(/:\s*a\b/g,  ':true');
-    }
+function fixJson(str) {
+    return str
+        .replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":')
+        .replace(/:\s*b\b/g,  ':"mp4"')
+        .replace(/:\s*h\b/g,  ':"mp4a"')
+        .replace(/:\s*d\b/g,  ':"mp4"')
+        .replace(/:\s*i\b/g,  ':"mp4a"')
+        .replace(/:\s*f\b/g,  ':"avc1"')
+        .replace(/:\s*g\b/g,  ':"m4a"')
+        .replace(/:\s*e\b/g,  ':"mp4"')
+        .replace(/void\s+0/g, 'null')
+        .replace(/:\s*c\b/g,  ':false')
+        .replace(/:\s*a\b/g,  ':true');
+}
+
 
     function scrapeFormats(videoId, cb) {
         GM_xmlhttpRequest({
@@ -118,7 +120,7 @@
                 if (res.status !== 200) { cb(`HTTP ${res.status}`); return; }
                 const clean = res.responseText.replace(/\\u002F/g, '/');
                 let title = '';
-                const tm = clean.match(/title\s*:\s*"((?:[^"\\]|\\.)*)"/); // Fixed in 7.3.0
+                const tm = clean.match(/title\s*:\s*"((?:[^"\\]|\\.)*)"/);
                 if (tm) {
                     title = tm[1]
                         .replace(/\\u([\dA-Fa-f]{4})/g,
