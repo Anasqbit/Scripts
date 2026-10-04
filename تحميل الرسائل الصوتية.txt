@@ -1,0 +1,295 @@
+// ==UserScript==
+// @name         تحميل الرسائل الصوتية - Instagram Direct
+// @namespace    audio-dl-script
+// @version      4.0
+// @description  يضيف زر تحميل لكل رسالة صوتية (بما فيها معاينات الردود المقتبسة)، مطابقة بالمعرّف الفريد
+// @match        https://www.instagram.com/direct/*
+// @grant        GM_download
+// @connect      cdn.fbsbx.com
+// @connect      fbcdn.net
+// @run-at       document-start
+// ==/UserScript==
+
+(function () {
+    'use strict';
+
+    function isInDirectPage() {
+        return location.pathname.startsWith('/direct/');
+    }
+
+    const captured = []; // { durationMs, mediaId, url }
+
+    function registerUrl(url) {
+        if (!isInDirectPage()) return;
+        if (!url || typeof url !== 'string' || !url.includes('audioclip-')) return;
+
+        const durMatch = url.match(/audioclip-\d+-(\d+)\.mp4/);
+        if (!durMatch) return;
+        const durationMs = parseInt(durMatch[1], 10);
+
+        const idMatch = url.match(/\/\d+_(\d+)_\d+_n\.mp4\//);
+        const mediaId = idMatch ? idMatch[1] : null;
+
+        if (!captured.some(c => c.url === url)) {
+            captured.push({ durationMs, mediaId, url });
+            console.log('[AudioDL] 🎯 captured', { durationMs, mediaId, url });
+        }
+    }
+
+    try {
+        const po = new PerformanceObserver((list) => {
+            for (const e of list.getEntries()) registerUrl(e.name);
+        });
+        po.observe({ entryTypes: ['resource'] });
+    } catch (e) { console.warn('[AudioDL] PerformanceObserver failed', e); }
+
+    const origFetch = window.fetch;
+    window.fetch = function (...args) {
+        try {
+            const u = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url);
+            registerUrl(u);
+        } catch (e) {}
+        return origFetch.apply(this, args);
+    };
+
+    const origOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (method, url, ...rest) {
+        try { registerUrl(url); } catch (e) {}
+        return origOpen.call(this, method, url, ...rest);
+    };
+
+    // ---- أدوات المطابقة الرقمية ----
+    function absBigInt(n) { return n < 0n ? -n : n; }
+
+    function findBestClip(seconds, waveformId) {
+        if (!captured.length) return null;
+        const targetMs = Math.round(seconds * 1000);
+
+        if (waveformId) {
+            let best = null, bestDiff = null;
+            for (const c of captured) {
+                if (!c.mediaId) continue;
+                try {
+                    const diff = absBigInt(BigInt(waveformId) - BigInt(c.mediaId));
+                    if (bestDiff === null || diff < bestDiff) { bestDiff = diff; best = c; }
+                } catch (e) {}
+            }
+            if (best) return best;
+        }
+
+        let best = null, bestDiff = Infinity;
+        for (const c of captured) {
+            const d = Math.abs(c.durationMs - targetMs);
+            if (d < bestDiff) { bestDiff = d; best = c; }
+        }
+        return (best && bestDiff <= 15) ? best : null;
+    }
+
+    function extractWaveformId(sliderEl) {
+        let el = sliderEl;
+        for (let i = 0; i < 10 && el; i++) {
+            const cp = el.querySelector && el.querySelector('clipPath[id^="waveform-clip-path-"]');
+            if (cp) {
+                const m = cp.id.match(/waveform-clip-path-(\d+)/);
+                if (m) return m[1];
+            }
+            el = el.parentElement;
+        }
+        return null;
+    }
+
+    function findPlayButton(container) {
+        return container && container.querySelector(
+            '[aria-label*="تشغيل"],[aria-label*="Play"],[aria-label*="play"]'
+        );
+    }
+
+    // ---- ✅ التحقق المُصلح: بدون اشتراط role="article" ----
+    function isRealAudioMessage(sliderEl) {
+        const label = sliderEl.getAttribute('aria-label') || '';
+        if (!/audio/i.test(label)) return false;          // لازم يكون audio progress bar
+
+        const waveformId = extractWaveformId(sliderEl);
+        if (!waveformId) return false;                     // لازم يكون له waveform
+
+        const container = sliderEl.closest('[role="presentation"]') || sliderEl.parentElement;
+        const hasPlayBtn = findPlayButton(container);
+        if (!hasPlayBtn) return false;                      // لازم يكون له زر تشغيل جنبه
+
+        return true; // كفاية كده (بيشمل الرسائل العادية + معاينات الردود المقتبسة)
+    }
+
+    function triggerDownload(url, filename) {
+        if (typeof GM_download === 'function') {
+            try { GM_download({ url, name: filename, saveAs: false }); return; }
+            catch (e) {}
+        }
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
+
+    function setBtnState(btn, state) {
+        if (state === 'loading') {
+            btn.innerHTML = spinnerSVG();
+            btn.classList.remove('audio-dl-error');
+            btn.classList.add('audio-dl-loading');
+        } else if (state === 'error') {
+            btn.innerHTML = errorSVG();
+            btn.classList.remove('audio-dl-loading');
+            btn.classList.add('audio-dl-error');
+            setTimeout(() => setBtnState(btn, 'idle'), 1600);
+        } else {
+            btn.innerHTML = downloadSVG();
+            btn.classList.remove('audio-dl-loading', 'audio-dl-error');
+        }
+    }
+
+    function downloadSVG() {
+        return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 3v12m0 0l-4-4m4 4l4-4M5 19h14" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>`;
+    }
+    function spinnerSVG() {
+        return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="audio-dl-spin">
+            <circle cx="12" cy="12" r="9" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="40 100"/>
+        </svg>`;
+    }
+    function errorSVG() {
+        return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 6l12 12M18 6L6 18" stroke="white" stroke-width="2.6" stroke-linecap="round"/>
+        </svg>`;
+    }
+
+    async function onDownloadClick(sliderEl, seconds, btn) {
+        if (btn.classList.contains('audio-dl-loading')) return;
+
+        let waveformId = extractWaveformId(sliderEl);
+        let clip = findBestClip(seconds, waveformId);
+
+        if (!clip) {
+            const playBtn = findPlayButton(sliderEl.closest('[role="presentation"]') || sliderEl.parentElement);
+            if (playBtn) {
+                setBtnState(btn, 'loading');
+                playBtn.click();
+                const start = Date.now();
+                while (!clip && Date.now() - start < 5000) {
+                    await new Promise(r => setTimeout(r, 200));
+                    waveformId = waveformId || extractWaveformId(sliderEl);
+                    clip = findBestClip(seconds, waveformId);
+                }
+                try { playBtn.click(); } catch (e) {}
+            }
+        }
+
+        if (clip) {
+            triggerDownload(clip.url, `audio_${clip.mediaId || clip.durationMs}.mp4`);
+            setBtnState(btn, 'idle');
+        } else {
+            setBtnState(btn, 'error');
+        }
+    }
+
+    function injectStyles() {
+        if (document.getElementById('audio-dl-styles')) return;
+        const style = document.createElement('style');
+        style.id = 'audio-dl-styles';
+        style.textContent = `
+            .audio-dl-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 28px;
+                height: 28px;
+                margin: 0 4px;
+                padding: 0;
+                background: linear-gradient(135deg, #6a11cb, #2575fc);
+                color: #fff;
+                border: none;
+                border-radius: 50%;
+                cursor: pointer;
+                box-shadow: 0 2px 6px rgba(106, 17, 203, 0.35);
+                transition: transform 0.12s ease, box-shadow 0.15s ease, background 0.2s ease;
+                flex-shrink: 0;
+            }
+            .audio-dl-btn:hover {
+                transform: scale(1.08);
+                box-shadow: 0 3px 10px rgba(37, 117, 252, 0.45);
+            }
+            .audio-dl-btn:active {
+                transform: scale(0.92);
+            }
+            .audio-dl-btn.audio-dl-loading {
+                cursor: wait;
+                background: linear-gradient(135deg, #6a11cb, #2575fc);
+                opacity: 0.9;
+            }
+            .audio-dl-btn.audio-dl-error {
+                background: linear-gradient(135deg, #e74c3c, #c0392b);
+                box-shadow: 0 2px 8px rgba(231, 76, 60, 0.45);
+            }
+            .audio-dl-spin {
+                animation: audio-dl-rotate 0.8s linear infinite;
+            }
+            @keyframes audio-dl-rotate {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    function addButtonTo(sliderEl) {
+        if (sliderEl.dataset.audioDlAdded) return;
+        if (!isRealAudioMessage(sliderEl)) return;
+
+        sliderEl.dataset.audioDlAdded = '1';
+
+        const seconds = parseFloat(sliderEl.getAttribute('aria-valuemax'));
+        if (!seconds || isNaN(seconds)) return;
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'audio-dl-btn';
+        btn.title = 'تحميل المقطع الصوتي';
+        setBtnState(btn, 'idle');
+
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onDownloadClick(sliderEl, seconds, btn);
+        });
+
+        if (sliderEl.parentElement) {
+            sliderEl.parentElement.insertBefore(btn, sliderEl.nextSibling);
+        }
+    }
+
+    function scan() {
+        if (!isInDirectPage()) return;
+        document.querySelectorAll('[role="slider"][aria-valuemax]').forEach(addButtonTo);
+    }
+
+    injectStyles();
+    new MutationObserver(() => { injectStyles(); scan(); })
+        .observe(document.documentElement, { childList: true, subtree: true });
+
+    let lastPath = location.pathname;
+    setInterval(() => {
+        if (location.pathname !== lastPath) {
+            lastPath = location.pathname;
+            console.log('[AudioDL] 🔄 navigation detected ->', lastPath);
+        }
+        scan();
+    }, 1200);
+
+    document.addEventListener('DOMContentLoaded', scan);
+    scan();
+
+    console.log('[AudioDL] ✅ Script ready (v4.0 - fixed quoted replies + gradient colors)');
+})();
