@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         تحميل الرسائل الصوتية - Instagram Direct
+// @name         Instgram voice chat downloader
 // @namespace    audio-dl-script
 // @version      4.0
 // @description  يضيف زر تحميل لكل رسالة صوتية (بما فيها معاينات الردود المقتبسة)، مطابقة بالمعرّف الفريد
-// @match        https://www.instagram.com/direct/*
+// @match        https://www.instagram.com/*
 // @grant        GM_download
 // @connect      cdn.fbsbx.com
 // @connect      fbcdn.net
