@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Reels Speed Toggle (2x)
 // @namespace    http://tampermonkey.net/
-// @version      7.3
+// @version      7.2
 // @description  تسريع 2x بالضغط المطول على الفيديو + زر قابل للسحب مع حفظ الموضع + مؤشر ديناميكي فوق الفيديو
 // @author       Anasqbit
 // @match        https://www.instagram.com/*
@@ -297,31 +297,4 @@
         }
         attachDocumentHold();
     }
-
-    // ─── تعديل أبعاد واجهة Instagram ────────────────────────
-    function adjustInstagramLayout() {
-        const element1 = document.querySelector(
-            '.x6s0dn4.x78zum5.xdt5ytf.xdj266r.x11t971q.xat24cr.xvc5jky.x1n2onr6.xh8yej3.xf68679'
-        );
-
-        const element2 = document.querySelector(
-            '.xnz67gz.xr2y4jy.x1whfx0g.x78zum5.xdt5ytf.x5yr21d.x1n2onr6.xh8yej3'
-        );
-
-        if (element1) {
-            element1.style.setProperty('--x-maxWidth', '820px');
-        }
-
-        if (element2) {
-            element2.style.width = '450px';
-        }
-    }
-
-    adjustInstagramLayout();
-
-    const layoutObserver = new MutationObserver(adjustInstagramLayout);
-    layoutObserver.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
 })();
