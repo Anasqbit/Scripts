@@ -5,6 +5,7 @@
 // @description  Reels Speed 2x + Likes New Tab + Reels Layout Resize + Voice Downloader
 // @author       Anasqbit
 // @match        https://www.instagram.com/*
+// @icon        https://www.google.com/s2/favicons?sz=64&domain=instagram.com
 // @grant        GM_download
 // @connect      cdn.fbsbx.com
 // @connect      fbcdn.net
